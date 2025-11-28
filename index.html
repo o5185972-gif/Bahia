@@ -6,64 +6,40 @@
 <style>
 body {
     font-family: Arial;
-    color: black;
+    background: #000;
+    color: #fff;
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     margin: 0;
-    background-image: url('https://i.postimg.cc/FspKR1F7/IMG-7369.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
 }
-
 .box {
-    background: #fffaf0; /* بيج فاتح جدًا */
+    background: #111;
     padding: 20px;
     border-radius: 10px;
     width: 400px;
-    border: 5px solid #8B4513; /* بني داكن */
-    color: black;
 }
-
-#nameStep, #questionStep, #resultStep, #adminLogin, #adminPanel {
-    padding: 10px;
-    border-radius: 10px;
-    border: 5px solid #8B4513;
-    background: #fffaf0;
-    margin-top: 10px;
-}
-
-input, textarea, button {
+input, button, textarea {
     width: 100%;
     padding: 10px;
     margin: 10px 0;
     font-size: 16px;
     border-radius: 5px;
-    border: 5px solid #8B4513;
-    background: #fffaf0;
-    color: black;
+    border: none;
 }
-
-#nameStep button {
-    /* صندوق "ابدأ" مثل صندوق الاسم */
-    background: #fffaf0;
-    color: black;
-    border: 5px solid #8B4513;
-    font-weight: bold;
+input, textarea {
+    background: #222;
+    color: #fff;
 }
-
-button:hover {
-    background: #fff4e6;
+button {
+    background: #444;
+    color: #fff;
+    cursor: pointer;
 }
-
-#contestMedia iframe,
-#contestMedia img { 
-    border-radius: 10px; 
-    width: 100%; 
-    border: 5px solid #8B4513;
-}
+button:hover { background: #666; }
+#adminPanel { margin-top: 20px; padding: 20px; background: #222; display: none; }
+#contestMedia iframe, #contestMedia img { border-radius: 10px; width: 100%; }
 </style>
 </head>
 <body>
@@ -97,19 +73,17 @@ button:hover {
         <button onclick="adminCheck()">دخول</button>
     </div>
 
-    <div id="adminPanel" style="display:none;">
+    <div id="adminPanel">
         <h3>ترتيب المشتركين</h3>
         <ol id="ranking"></ol>
 
         <h3>تغيير السؤال</h3>
         <textarea id="newQuestion" style="width:100%; height:80px;"></textarea>
         <input type="text" id="newAnswer" placeholder="الإجابة الصحيحة الجديدة">
-        <input type="text" id="newMedia" placeholder="رابط صورة/يوتيوب/Streamable/Vimeo">
+        <input type="text" id="newMedia" placeholder="رابط صورة/يوتيوب/Streamable">
         <button onclick="updateQuestion()">تحديث السؤال</button>
         <button onclick="resetPoints()">تصفير جميع النقاط</button>
         <button onclick="deletePlayers()">حذف جميع المشتركين</button>
-        <input type="text" id="deletePlayerName" placeholder="حذف لاعب بعينه">
-        <button onclick="deleteSinglePlayer()">حذف اللاعب</button>
     </div>
 
 </div>
@@ -117,7 +91,7 @@ button:hover {
 <script type="module">
 // Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, get, child, update, remove, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBFv34RKK0gUg8-E1DA-mWorXwHpVTB2yc",
@@ -132,25 +106,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// بيانات النظام
 let currentPlayer = null;
+let answeredPlayers = [];
 
-// مراقبة السؤال والوسائط تلقائيًا
-const questionRef = ref(db, 'currentQuestion');
-const mediaRef = ref(db, 'currentMedia');
-
-onValue(questionRef, (snapshot) => {
-    const question = snapshot.val();
-    if(question) document.getElementById('questionText').innerText = question;
-});
-
-onValue(mediaRef, (snapshot) => {
-    const mediaUrl = snapshot.val();
-    if(mediaUrl) updateMediaDisplay(mediaUrl);
-});
-
+// عرض الوسائط
 function updateMediaDisplay(url){
     let container = document.getElementById("contestMedia");
-    if(!url || url.trim()===""){ container.innerHTML = ""; return; }
+    if(!url || url.trim()===""){
+        container.innerHTML = "";
+        return;
+    }
     if(url.match(/\.(jpg|png|jpeg|gif)$/)){
         container.innerHTML = `<img src="${url}">`;
     } else if(url.includes("youtube.com") || url.includes("youtu.be")){
@@ -159,14 +125,12 @@ function updateMediaDisplay(url){
     } else if(url.includes("streamable.com")){
         let id = url.split("/").pop();
         container.innerHTML = `<iframe src="https://streamable.com/e/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
-    } else if(url.includes("vimeo.com")){
-        let id = url.split("/").pop();
-        container.innerHTML = `<iframe src="https://player.vimeo.com/video/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
     } else {
         container.innerHTML = `<iframe src="${url}" height="300" frameborder="0" allowfullscreen></iframe>`;
     }
 }
 
+// بدء المسابقة
 window.start = function() {
     let name = document.getElementById("playerName").value.trim();
     if(name==="") return alert("اكتب اسمك");
@@ -183,11 +147,12 @@ window.start = function() {
     });
 }
 
+// إرسال الإجابة
 window.submitAnswer = function(){
     let ans = document.getElementById("answerInput").value.trim();
+    let earned = (ans == "2025" ? 3 : 0); // إجابة مثال
     get(child(ref(db), `players/${currentPlayer}/score`)).then((snapshot)=>{
         let prevScore = snapshot.exists() ? snapshot.val() : 0;
-        let earned = (ans == "2025" ? 3 : 0);
         update(ref(db, `players/${currentPlayer}`), {score: prevScore + earned});
         set(ref(db, `answered/${currentPlayer}`), true);
         document.getElementById("questionStep").style.display="none";
@@ -196,7 +161,11 @@ window.submitAnswer = function(){
     });
 }
 
-window.showAdminLogin = function(){ document.getElementById("adminLogin").style.display="block"; }
+// لوحة المالك
+window.showAdminLogin = function(){
+    document.getElementById("adminLogin").style.display="block";
+}
+
 window.adminCheck = function(){
     if(document.getElementById("adminPass").value === "Dosary"){
         showRanking();
@@ -220,6 +189,7 @@ window.showRanking = function(){
     });
 }
 
+// تغيير السؤال
 window.updateQuestion = function(){
     let q = document.getElementById("newQuestion").value.trim();
     let a = document.getElementById("newAnswer").value.trim();
@@ -234,6 +204,7 @@ window.updateQuestion = function(){
     alert("تم تحديث السؤال بنجاح");
 }
 
+// تصفير النقاط
 window.resetPoints = function(){
     if(confirm("هل تريد تصفير النقاط؟")){
         get(child(ref(db), `players`)).then(snapshot=>{
@@ -248,6 +219,7 @@ window.resetPoints = function(){
     }
 }
 
+// حذف المشتركين
 window.deletePlayers = function(){
     if(confirm("هل تريد حذف جميع المشتركين؟")){
         set(ref(db, `players`), {});
@@ -257,14 +229,6 @@ window.deletePlayers = function(){
     }
 }
 
-window.deleteSinglePlayer = function(){
-    let name = document.getElementById("deletePlayerName").value.trim();
-    if(name==="") return alert("اكتب اسم اللاعب");
-    remove(ref(db, `players/${name}`));
-    remove(ref(db, `answered/${name}`));
-    showRanking();
-    alert("تم حذف اللاعب: " + name);
-}
 </script>
 
 </body>
