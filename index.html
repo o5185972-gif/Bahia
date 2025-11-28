@@ -6,16 +6,19 @@
 <style>
 body {
     font-family: Arial;
-    background: #000;
     color: #fff;
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     margin: 0;
+    background-image: url('https://i.postimg.cc/FspKR1F7/IMG-7369.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 .box {
-    background: #111;
+    background: rgba(0,0,0,0.8);
     padding: 20px;
     border-radius: 10px;
     width: 400px;
@@ -80,10 +83,12 @@ button:hover { background: #666; }
         <h3>تغيير السؤال</h3>
         <textarea id="newQuestion" style="width:100%; height:80px;"></textarea>
         <input type="text" id="newAnswer" placeholder="الإجابة الصحيحة الجديدة">
-        <input type="text" id="newMedia" placeholder="رابط صورة/يوتيوب/Streamable">
+        <input type="text" id="newMedia" placeholder="رابط صورة/يوتيوب/Streamable/Vimeo">
         <button onclick="updateQuestion()">تحديث السؤال</button>
         <button onclick="resetPoints()">تصفير جميع النقاط</button>
         <button onclick="deletePlayers()">حذف جميع المشتركين</button>
+        <input type="text" id="deletePlayerName" placeholder="حذف لاعب بعينه">
+        <button onclick="deleteSinglePlayer()">حذف اللاعب</button>
     </div>
 
 </div>
@@ -91,7 +96,7 @@ button:hover { background: #666; }
 <script type="module">
 // Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { getDatabase, ref, set, get, child, update, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBFv34RKK0gUg8-E1DA-mWorXwHpVTB2yc",
@@ -108,15 +113,11 @@ const db = getDatabase(app);
 
 // بيانات النظام
 let currentPlayer = null;
-let answeredPlayers = [];
 
 // عرض الوسائط
 function updateMediaDisplay(url){
     let container = document.getElementById("contestMedia");
-    if(!url || url.trim()===""){
-        container.innerHTML = "";
-        return;
-    }
+    if(!url || url.trim()===""){ container.innerHTML = ""; return; }
     if(url.match(/\.(jpg|png|jpeg|gif)$/)){
         container.innerHTML = `<img src="${url}">`;
     } else if(url.includes("youtube.com") || url.includes("youtu.be")){
@@ -125,6 +126,9 @@ function updateMediaDisplay(url){
     } else if(url.includes("streamable.com")){
         let id = url.split("/").pop();
         container.innerHTML = `<iframe src="https://streamable.com/e/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
+    } else if(url.includes("vimeo.com")){
+        let id = url.split("/").pop();
+        container.innerHTML = `<iframe src="https://player.vimeo.com/video/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
     } else {
         container.innerHTML = `<iframe src="${url}" height="300" frameborder="0" allowfullscreen></iframe>`;
     }
@@ -150,9 +154,9 @@ window.start = function() {
 // إرسال الإجابة
 window.submitAnswer = function(){
     let ans = document.getElementById("answerInput").value.trim();
-    let earned = (ans == "2025" ? 3 : 0); // إجابة مثال
     get(child(ref(db), `players/${currentPlayer}/score`)).then((snapshot)=>{
         let prevScore = snapshot.exists() ? snapshot.val() : 0;
+        let earned = (ans == "2025" ? 3 : 0);
         update(ref(db, `players/${currentPlayer}`), {score: prevScore + earned});
         set(ref(db, `answered/${currentPlayer}`), true);
         document.getElementById("questionStep").style.display="none";
@@ -162,10 +166,7 @@ window.submitAnswer = function(){
 }
 
 // لوحة المالك
-window.showAdminLogin = function(){
-    document.getElementById("adminLogin").style.display="block";
-}
-
+window.showAdminLogin = function(){ document.getElementById("adminLogin").style.display="block"; }
 window.adminCheck = function(){
     if(document.getElementById("adminPass").value === "Dosary"){
         showRanking();
@@ -229,6 +230,15 @@ window.deletePlayers = function(){
     }
 }
 
+// حذف لاعب بعينه
+window.deleteSinglePlayer = function(){
+    let name = document.getElementById("deletePlayerName").value.trim();
+    if(name==="") return alert("اكتب اسم اللاعب");
+    remove(ref(db, `players/${name}`));
+    remove(ref(db, `answered/${name}`));
+    showRanking();
+    alert("تم حذف اللاعب: " + name);
+}
 </script>
 
 </body>
