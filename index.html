@@ -60,7 +60,7 @@ button:hover { background: #666; }
     <div id="questionStep" style="display:none;">
         <h3>السؤال:</h3>
         <div id="contestMedia"></div>
-        <p id="questionText">في أي عام هذه التلاوة؟</p>
+        <p id="questionText">السؤال سيتم عرضه بعد التفعيل من المالك</p>
         <input type="text" id="answerInput" placeholder="اكتب إجابتك">
         <button onclick="submitAnswer()">إرسال الإجابة</button>
     </div>
@@ -111,25 +111,33 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// بيانات النظام
 let currentPlayer = null;
 
 // عرض الوسائط
 function updateMediaDisplay(url){
     let container = document.getElementById("contestMedia");
     if(!url || url.trim()===""){ container.innerHTML = ""; return; }
+
     if(url.match(/\.(jpg|png|jpeg|gif)$/)){
         container.innerHTML = `<img src="${url}">`;
-    } else if(url.includes("youtube.com") || url.includes("youtu.be")){
-        let id = url.split("v=")[1] || url.split("youtu.be/")[1];
+    } 
+    else if(url.includes("youtube.com") || url.includes("youtu.be")){
+        let id = (url.split("v=")[1] || url.split("youtu.be/")[1] || "").split("&")[0];
         container.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
-    } else if(url.includes("streamable.com")){
+    } 
+    else if(url.includes("streamable.com")){
         let id = url.split("/").pop();
         container.innerHTML = `<iframe src="https://streamable.com/e/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
-    } else if(url.includes("vimeo.com")){
-        let id = url.split("/").pop();
-        container.innerHTML = `<iframe src="https://player.vimeo.com/video/${id}" height="300" frameborder="0" allowfullscreen></iframe>`;
-    } else {
+    } 
+    else if(url.includes("vimeo.com")){
+        let idMatch = url.match(/vimeo\.com\/(\d+)/);
+        if(idMatch && idMatch[1]){
+            container.innerHTML = `<iframe src="https://player.vimeo.com/video/${idMatch[1]}" height="300" frameborder="0" allowfullscreen></iframe>`;
+        } else {
+            container.innerHTML = `<iframe src="${url}" height="300" frameborder="0" allowfullscreen></iframe>`;
+        }
+    } 
+    else {
         container.innerHTML = `<iframe src="${url}" height="300" frameborder="0" allowfullscreen></iframe>`;
     }
 }
@@ -190,7 +198,7 @@ window.showRanking = function(){
     });
 }
 
-// تغيير السؤال
+// تحديث السؤال وفتح الفيديو
 window.updateQuestion = function(){
     let q = document.getElementById("newQuestion").value.trim();
     let a = document.getElementById("newAnswer").value.trim();
@@ -202,6 +210,7 @@ window.updateQuestion = function(){
         currentMedia: m,
         answered: {}
     });
+    updateMediaDisplay(m); // عرض الفيديو مباشرة بعد التحديث
     alert("تم تحديث السؤال بنجاح");
 }
 
